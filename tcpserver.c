@@ -1,3 +1,4 @@
+#include <wiringPi.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
@@ -13,6 +14,10 @@
 #define SERVPORT 1800
 #define BACKLOG 5
 
+// GPIO pins
+#define LedPin 0 // GPIO 17
+#define ButtonPin 1 // GPIO 18
+
 void check_err(int8_t, char[]);
 char *set_httpHeader(char[], const char *);
 char get_path(char [], int);
@@ -22,6 +27,14 @@ int main(void)
     char httpHeader_ok[] = "HTTP/1.1 200 OK\r\n\n";
     int8_t server_socket, client_socket;
     struct sockaddr_in servaddr;
+
+		if(wiringPiSetup() == -1) {
+			fprintf(stderr, "wiringpi setup error");
+			exit(0);
+		}	
+
+		pinMode(LedPin, OUTPUT);
+		pinMode(ButtonPin, INPUT);
 
     check_err((server_socket = socket(AF_INET, SOCK_STREAM, 0)), "Server socket: ");
     int option = 1;
@@ -45,20 +58,22 @@ int main(void)
         if (client_socket > 0)
         {
             printf("Connected\n");
+						write(client_socket, message, strlen(message));
 
-            char path[BUFSIZE];
-            get_path(path, client_socket);
+						char path[BUFSIZE];
+						get_path(path, client_socket);
 
-            if (strcasecmp(path, "/on") == 0)
-            {
-                printf("ON\n");
-            }
-            else if (strcasecmp(path, "/off") == 0)
-            {
-                printf("OFF\n");
-            }
+						if (strcasecmp(path, "/on") == 0)
+						{
+								printf("ON\n");
+								digitalWrite(LedPin, LOW);
+						}
+						else if (strcasecmp(path, "/off") == 0)
+						{
+								printf("OFF\n");
+								digitalWrite(LedPin, HIGH);
+						}
 
-            write(client_socket, message, strlen(message));
         }
         close(client_socket);
     }
@@ -86,7 +101,9 @@ char *set_httpHeader(char httpHeader[], const char *file_name)
     char line[100];
     char *responseData = malloc(8000);
 
+		memset(responseData, 0, 8000);
     strcat(responseData, httpHeader);
+		printf("%s", responseData);
 
     while (fgets(line, 100, htmlData) != 0)
     {
